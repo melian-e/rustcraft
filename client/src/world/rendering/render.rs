@@ -41,7 +41,7 @@ fn update_chunk(
         .unwrap();
 
     let liquid_texture = material_resource
-        .liquid_materials
+        .global_materials
         .get(&world::GlobalMaterial::Liquids)
         .unwrap();
 
@@ -63,13 +63,13 @@ fn update_chunk(
             .with_children(|root| {
                 root.spawn((
                     StateScoped(GameState::Game),
-                    Mesh3d(meshes.add(new_solid_mesh)),
-                    MeshMaterial3d(solid_texture.clone()),
+                    Mesh3d(meshes.add(new_liquid_mesh)),
+                    MeshMaterial3d(liquid_texture.clone()),
                 ));
                 root.spawn((
                     StateScoped(GameState::Game),
-                    Mesh3d(meshes.add(new_liquid_mesh)),
-                    MeshMaterial3d(liquid_texture.clone()),
+                    Mesh3d(meshes.add(new_solid_mesh)),
+                    MeshMaterial3d(solid_texture.clone()),
                 ));
             })
             .id();

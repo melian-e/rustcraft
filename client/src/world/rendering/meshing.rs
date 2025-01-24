@@ -105,7 +105,7 @@ pub(crate) fn generate_chunk_mesh(
             })
             .collect();
 
-        if (visibility == BlockTransparency::Liquid) {
+        if visibility == BlockTransparency::Liquid {
             liquid_mesh_creator.vertices.extend(local_vertices);
             liquid_mesh_creator.indices.extend(local_indices);
             liquid_mesh_creator.normals.extend(local_normals);

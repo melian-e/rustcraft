@@ -22,10 +22,9 @@ pub struct AtlasWrapper {
     pub uvs: HashMap<String, UvCoords>,
 }
 
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Debug)]
 pub struct MaterialResource {
     pub global_materials: HashMap<GlobalMaterial, Handle<StandardMaterial>>,
-    pub liquid_materials: HashMap<GlobalMaterial, Handle<StandardMaterial>>,
     pub items: Option<AtlasWrapper>,
     pub blocks: Option<AtlasWrapper>,
 }
@@ -185,18 +184,22 @@ pub fn create_all_atlases(
                 }),
             );
             //PAS SUR
-            material_resource.liquid_materials.insert(
+            material_resource.global_materials.insert(
                 GlobalMaterial::Liquids,
                 materials.add(StandardMaterial {
                     base_color_texture: Some(blocks.texture.clone_weak()),
                     perceptual_roughness: BASE_ROUGHNESS,
                     reflectance: BASE_SPECULAR_HIGHLIGHT,
-                    alpha_mode: AlphaMode::Blend,
+                    alpha_mode: AlphaMode::Opaque,
                     ..default()
                 }),
             );
+
             material_resource.blocks = Some(blocks);
+
+            debug!("Value of material_resource: {:?}", material_resource);
         } else {
+            warn!("Failed to load block textures");
             loading.textures_loaded = false;
         }
     }
