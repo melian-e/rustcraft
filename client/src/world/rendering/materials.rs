@@ -25,6 +25,7 @@ pub struct AtlasWrapper {
 #[derive(Resource, Default)]
 pub struct MaterialResource {
     pub global_materials: HashMap<GlobalMaterial, Handle<StandardMaterial>>,
+    pub liquid_materials: HashMap<GlobalMaterial, Handle<StandardMaterial>>,
     pub items: Option<AtlasWrapper>,
     pub blocks: Option<AtlasWrapper>,
 }
@@ -180,6 +181,17 @@ pub fn create_all_atlases(
                     perceptual_roughness: BASE_ROUGHNESS,
                     reflectance: BASE_SPECULAR_HIGHLIGHT,
                     alpha_mode: AlphaMode::Mask(0.5),
+                    ..default()
+                }),
+            );
+            //PAS SUR
+            material_resource.liquid_materials.insert(
+                GlobalMaterial::Liquids,
+                materials.add(StandardMaterial {
+                    base_color_texture: Some(blocks.texture.clone_weak()),
+                    perceptual_roughness: BASE_ROUGHNESS,
+                    reflectance: BASE_SPECULAR_HIGHLIGHT,
+                    alpha_mode: AlphaMode::Blend,
                     ..default()
                 }),
             );

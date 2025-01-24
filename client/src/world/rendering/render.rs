@@ -22,7 +22,7 @@ use crate::world::ClientWorldMap;
 
 #[derive(Debug, Default, Resource)]
 pub struct QueuedMeshes {
-    pub meshes: Vec<Task<(IVec3, Mesh)>>,
+    pub meshes: Vec<Task<(IVec3, Vec<Mesh>)>>,
 }
 
 fn update_chunk(
@@ -31,12 +31,18 @@ fn update_chunk(
     commands: &mut Commands,
     meshes: &mut Assets<Mesh>,
     world_map: &mut ClientWorldMap,
-    new_mesh: Mesh,
+    new_solid_mesh: Mesh,
+    new_liquid_mesh: Mesh,
 ) {
     let chunk = world_map.map.get_mut(chunk_pos).unwrap();
-    let texture = material_resource
+    let solid_texture = material_resource
         .global_materials
         .get(&world::GlobalMaterial::Blocks)
+        .unwrap();
+
+    let liquid_texture = material_resource
+        .liquid_materials
+        .get(&world::GlobalMaterial::Liquids)
         .unwrap();
 
     if chunk.entity.is_some() {
@@ -53,13 +59,19 @@ fn update_chunk(
         );
 
         let new_entity = commands
-            .spawn((
-                StateScoped(GameState::Game),
-                Mesh3d(meshes.add(new_mesh)),
-                MeshMaterial3d(texture.clone()),
-                GlobalTransform::from(chunk_t),
-                chunk_t,
-            ))
+            .spawn((chunk_t,))
+            .with_children(|root| {
+                root.spawn((
+                    StateScoped(GameState::Game),
+                    Mesh3d(meshes.add(new_solid_mesh)),
+                    MeshMaterial3d(solid_texture.clone()),
+                ));
+                root.spawn((
+                    StateScoped(GameState::Game),
+                    Mesh3d(meshes.add(new_liquid_mesh)),
+                    MeshMaterial3d(liquid_texture.clone()),
+                ));
+            })
             .id();
 
         let ch = world_map.map.get_mut(chunk_pos).unwrap();
@@ -147,6 +159,7 @@ pub fn world_render_system(
                         world::meshing::generate_chunk_mesh(&map_clone, &ch, &pos, &uvs_clone),
                     )
                 });
+
                 queued_meshes.meshes.push(t);
             }
         }
@@ -156,7 +169,7 @@ pub fn world_render_system(
     // Iterate through queued meshes to see if they are completed
     queued_meshes.meshes.retain_mut(|task| {
         // If completed, then use the mesh to update the chunk and delete it from the meshing queue
-        if let Some((chunk_pos, new_mesh)) = block_on(future::poll_once(task)) {
+        if let Some((chunk_pos, new_meshs)) = block_on(future::poll_once(task)) {
             // Update the corresponding chunk
             if world_map.map.contains_key(&chunk_pos) {
                 update_chunk(
@@ -165,7 +178,8 @@ pub fn world_render_system(
                     &mut commands,
                     &mut meshes,
                     &mut world_map,
-                    new_mesh,
+                    new_meshs[0].clone(),
+                    new_meshs[1].clone(),
                 );
             }
             false

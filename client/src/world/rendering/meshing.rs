@@ -25,19 +25,25 @@ impl UvCoords {
     }
 }
 
+#[derive(Default)]
+pub struct MeshCreator {
+    pub vertices: Vec<[f32; 3]>,
+    pub indices: Vec<u32>,
+    pub normals: Vec<[f32; 3]>,
+    pub uvs: Vec<[f32; 2]>,
+    pub colors: Vec<[f32; 4]>,
+}
+
 pub(crate) fn generate_chunk_mesh(
     world_map: &ClientWorldMap,
     chunk: &ClientChunk,
     chunk_pos: &IVec3,
     uv_map: &HashMap<String, UvCoords>,
-) -> Mesh {
+) -> Vec<Mesh> {
     let start = Instant::now();
 
-    let mut vertices: Vec<[f32; 3]> = Vec::new();
-    let mut indices: Vec<u32> = Vec::new();
-    let mut normals = Vec::new();
-    let mut uvs = Vec::new();
-    let mut colors = Vec::new();
+    let mut solid_mesh_creator = MeshCreator::default();
+    let mut liquid_mesh_creator = MeshCreator::default();
 
     let mut indices_offset = 0;
 
@@ -99,26 +105,52 @@ pub(crate) fn generate_chunk_mesh(
             })
             .collect();
 
-        vertices.extend(local_vertices);
-        indices.extend(local_indices);
-        normals.extend(local_normals);
-        uvs.extend(local_uvs);
-        colors.extend(local_colors);
+        if (visibility == BlockTransparency::Liquid) {
+            liquid_mesh_creator.vertices.extend(local_vertices);
+            liquid_mesh_creator.indices.extend(local_indices);
+            liquid_mesh_creator.normals.extend(local_normals);
+            liquid_mesh_creator.uvs.extend(local_uvs);
+            liquid_mesh_creator.colors.extend(local_colors);
+        } else {
+            solid_mesh_creator.vertices.extend(local_vertices);
+            solid_mesh_creator.indices.extend(local_indices);
+            solid_mesh_creator.normals.extend(local_normals);
+            solid_mesh_creator.uvs.extend(local_uvs);
+            solid_mesh_creator.colors.extend(local_colors);
+        }
     }
 
-    let mut mesh = Mesh::new(PrimitiveTopology::TriangleList, default());
-    mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, vertices.to_vec());
-    mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
-    mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, colors);
-    mesh.insert_indices(Indices::U32(indices));
+    let mut solid_mesh = Mesh::new(PrimitiveTopology::TriangleList, default());
+    solid_mesh.insert_attribute(
+        Mesh::ATTRIBUTE_POSITION,
+        solid_mesh_creator.vertices.to_vec(),
+    );
+    solid_mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, solid_mesh_creator.normals);
+    solid_mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, solid_mesh_creator.uvs);
+    solid_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, solid_mesh_creator.colors);
+    solid_mesh.insert_indices(Indices::U32(solid_mesh_creator.indices));
+
+    let mut liquid_mesh = Mesh::new(PrimitiveTopology::TriangleList, default());
+    liquid_mesh.insert_attribute(
+        Mesh::ATTRIBUTE_POSITION,
+        liquid_mesh_creator.vertices.to_vec(),
+    );
+    liquid_mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, liquid_mesh_creator.normals);
+    liquid_mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, liquid_mesh_creator.uvs);
+    liquid_mesh.insert_attribute(Mesh::ATTRIBUTE_COLOR, liquid_mesh_creator.colors);
+    liquid_mesh.insert_indices(Indices::U32(liquid_mesh_creator.indices));
 
     trace!("Render time : {:?}", Instant::now() - start);
 
-    if let Err(e) = mesh.generate_tangents() {
+    if let Err(e) = solid_mesh.generate_tangents() {
         warn!("Error while generating tangents for the mesh : {:?}", e);
     }
-    mesh
+
+    if let Err(e) = liquid_mesh.generate_tangents() {
+        warn!("Error while generating tangents for the mesh : {:?}", e);
+    }
+
+    vec![solid_mesh, liquid_mesh]
 }
 
 pub(crate) fn is_block_surrounded(
